@@ -1,4 +1,5 @@
 /*
+#include <packages/hx711-latest/sensor_avia_hx711.h>
  * Copyright (c) 2006-2018, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -10,7 +11,6 @@
  *
  */
 
-#include "sensor_dallas_dht11.h"
 #include <rtdevice.h>
 #include <rthw.h>
 #include "sensor.h"
@@ -52,39 +52,31 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 }
 #endif
 
-static void dht11_reset(rt_base_t pin)
+static void dht11_reset(hx711_device_t pins)
 {
-    rt_pin_mode(pin, PIN_MODE_OUTPUT);
-
-    rt_pin_write(pin, PIN_LOW);
-    rt_thread_mdelay(20);               /* 20ms */
-
-    rt_pin_write(pin, PIN_HIGH);
-    rt_hw_us_delay(30);                 /* 30us*/
+    rt_pin_mode(pins->D_OUT, PIN_MODE_INPUT);
+    rt_pin_mode(pins->PD_SCK, PIN_MODE_OUTPUT);
+//    rt_pin_write(pin, PIN_LOW);
+//    rt_thread_mdelay(20);               /* 20ms */
+//
+//    rt_pin_write(pin, PIN_HIGH);
+//    rt_hw_us_delay(30);                 /* 30us*/
 }
 
-static uint8_t dht11_check(rt_base_t pin)
+static uint8_t dht11_check(hx711_device_t pins)
 {
     uint8_t retry = 0;
-    rt_pin_mode(pin, PIN_MODE_INPUT);
 
-    while (rt_pin_read(pin) && retry < 100)
+    rt_pin_write(pins->PD_SCK, PIN_HIGH);
+    rt_hw_us_delay(100);
+    rt_pin_write(pins->PD_SCK, PIN_LOW);
+    rt_hw_us_delay(2);
+
+    while (rt_pin_read(pins->D_OUT) && retry < 100)
     {
         retry++;
         rt_hw_us_delay(1);
     }
-
-    if(retry >= 100)
-    {
-        return CONNECT_FAILED;
-    }
-
-    retry = 0;
-    while (!rt_pin_read(pin) && retry < 100)
-    {
-        retry++;
-        rt_hw_us_delay(1);
-    };
 
     if(retry >= 100)
     {
@@ -155,7 +147,7 @@ static uint8_t dht11_read_Data(rt_base_t pin,uint8_t *temp,uint8_t *humi)
 	return 0;	
 }
 
-uint8_t dht11_init(rt_base_t pin)
+uint8_t hx711_init(hx711_device_t pins)
 {
     uint8_t ret = 0;
 
@@ -219,15 +211,15 @@ static struct rt_sensor_ops sensor_ops =
     dht11_control
 };
 
-static struct rt_sensor_device dht11_dev;
-int rt_hw_dht11_init(const char *name, struct rt_sensor_config *cfg)
+static struct rt_sensor_device hx711_dev;
+int rt_hw_hx711_init(const char *name, struct rt_sensor_config *cfg)
 {
     rt_err_t result = RT_EOK;
-    rt_sensor_t sensor = &dht11_dev;
+    rt_sensor_t sensor = &hx711_dev;
 
     rt_memset(sensor, 0x0, sizeof(struct rt_sensor_device));
 
-    if (!dht11_init((rt_base_t)cfg->intf.user_data))
+    if (!hx711_init((hx711_device_t)cfg->intf.user_data))
     {
         sensor->module = rt_calloc(1, sizeof(struct rt_sensor_module));
         if (sensor->module == RT_NULL)
