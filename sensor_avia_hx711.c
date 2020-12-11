@@ -18,7 +18,7 @@
 #include <stdint.h>
 
 #define SENSOR_DEBUG
-#define DBG_TAG               "sensor.dht11"
+#define DBG_TAG               "sensor.hx711"
 
 #ifdef SENSOR_DEBUG
 #define DBG_LVL               DBG_LOG
@@ -29,8 +29,7 @@
 
 #define SENSOR_TEMP_RANGE_MAX (100)
 #define SENSOR_TEMP_RANGE_MIN (0)
-#define SENSOR_HUMI_RANGE_MAX (100)
-#define SENSOR_HUMI_RANGE_MIN (0)
+
 
 #ifndef RT_USING_PIN
 #error "Please enable RT_USING_PIN"
@@ -52,26 +51,24 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 }
 #endif
 
-static void dht11_reset(hx711_device_t pins)
+static void hx711_reset(hx711_device_t pins)
 {
+
     rt_pin_mode(pins->D_OUT, PIN_MODE_INPUT);
     rt_pin_mode(pins->PD_SCK, PIN_MODE_OUTPUT);
-//    rt_pin_write(pin, PIN_LOW);
-//    rt_thread_mdelay(20);               /* 20ms */
-//
-//    rt_pin_write(pin, PIN_HIGH);
-//    rt_hw_us_delay(30);                 /* 30us*/
-}
-
-static uint8_t dht11_check(hx711_device_t pins)
-{
-    uint8_t retry = 0;
-
+    /* disable the sensor */
     rt_pin_write(pins->PD_SCK, PIN_HIGH);
     rt_hw_us_delay(100);
+    //    /* at enable status , D_OUT should be high */
+    //    if(!rt_pin_read(pins->D_OUT))
+    //        return CONNECT_SUCCESS;
     rt_pin_write(pins->PD_SCK, PIN_LOW);
     rt_hw_us_delay(2);
+}
 
+static uint8_t hx711_check(hx711_device_t pins)
+{
+    uint8_t retry = 0;
     while (rt_pin_read(pins->D_OUT) && retry < 100)
     {
         retry++;
@@ -86,58 +83,35 @@ static uint8_t dht11_check(hx711_device_t pins)
     return CONNECT_SUCCESS;
 }
 
-static uint8_t dht11_read_bit(rt_base_t pin)
-{
-	uint8_t retry = 0;
-	while (rt_pin_read(pin) && retry < 100)
-    {
-        retry++;
-        rt_hw_us_delay(1);
-    }
-	retry = 0;
 
-	while (!rt_pin_read(pin) && retry < 100)
-    {
-        retry++;
-        rt_hw_us_delay(1);
-    }
-
-	rt_hw_us_delay(40);
-	if(rt_pin_read(pin))
-		return 1;
-    return 0;
-}
-
-static uint8_t dht11_read_byte(rt_base_t pin)
+static uint8_t hx711_read_byte(hx711_device_t pins)
 {
     uint8_t i, dat = 0;
-
-    for (i = 1; i <= 8; i++)
+    for (i = 1; i <= 24; i++)
     {
+        rt_pin_write(pins->PD_SCK, PIN_HIGH);
+        rt_hw_us_delay(1);
         dat <<= 1;
-		dat |= dht11_read_bit(pin);
-    }
+        rt_pin_write(pins->PD_SCK, PIN_LOW);
+        if(rt_pin_read(pins->D_OUT) == 1)
+            dat++;
 
+    }
+    rt_pin_write(pins->PD_SCK, PIN_HIGH);
+    rt_hw_us_delay(2);
+    /* convert the data at 25th rising edge */
+    dat=dat^0x800000;
+    rt_pin_write(pins->PD_SCK, PIN_LOW);
     return dat;
 }
 
-static uint8_t dht11_read_Data(rt_base_t pin,uint8_t *temp,uint8_t *humi)
+static uint8_t hx711_read_Data(hx711_device_t pins,uint8_t *weight)
 {
-	uint8_t i, buf[5];
-	dht11_reset(pin);
+	hx711_reset(pin);
 
-	if(dht11_check(pin) == 0)
+	if(hx711_check(pin) == 0)
 	{
-		for(i=0; i<5; i++) /* read 40 bits */
-		{
-			buf[i] = dht11_read_byte(pin);
-		}
-
-		if((buf[0] + buf[1] + buf[2] + buf[3]) == buf[4])
-		{
-			*humi = buf[0];
-			*temp = buf[2];
-		}
+	    *weight = hx711_read_byte(pins);
 	}
     else
     {
@@ -151,64 +125,48 @@ uint8_t hx711_init(hx711_device_t pins)
 {
     uint8_t ret = 0;
 
-    dht11_reset(pin);
-    ret = dht11_check(pin);
+    hx711_reset(pins);
+    ret = hx711_check(pins);
     if (ret != 0)
     {
-        dht11_reset(pin);
-        ret = dht11_check(pin);
+        hx711_reset(pins);
+        ret = hx711_check(pins);
     }
 
     return ret;
 }
 
-int32_t dht11_get_temperature(rt_base_t pin)
+
+static rt_size_t hx711_polling_get_data(rt_sensor_t sensor, struct rt_sensor_data *data)
 {
-    static int32_t temOLD = 0;
-    uint8_t humi=0, temp = 0;
-    int32_t temNEW;
-
-    dht11_read_Data(pin, &temp, &humi);
-
-    temNEW = (humi << 16)|(temp<<0);
-
-    if((temNEW != temOLD) && (temNEW !=0))
-    {
-        temOLD = temNEW;
-    }
-    return temOLD;
-}
-
-static rt_size_t dht11_polling_get_data(rt_sensor_t sensor, struct rt_sensor_data *data)
-{
-    rt_int32_t temperature_humidity;
-    temperature_humidity = dht11_get_temperature((rt_base_t)sensor->config.intf.user_data);
-    data->data.temp = temperature_humidity;
+    rt_int32_t weight;
+    weight = hx711_read_Data((rt_base_t)sensor->config.intf.user_data);
+    data->data.temp = weight;
     data->timestamp = rt_sensor_get_ts();
     return 1;
 }
 
-static rt_size_t dht11_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
+static rt_size_t hx711_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
 {
     RT_ASSERT(buf);
 
     if (sensor->config.mode == RT_SENSOR_MODE_POLLING)
     {
-        return dht11_polling_get_data(sensor, buf);
+        return hx711_polling_get_data(sensor, buf);
     }
 
     return 0;
 }
 
-static rt_err_t dht11_control(struct rt_sensor_device *sensor, int cmd, void *args)
+static rt_err_t hx711_control(struct rt_sensor_device *sensor, int cmd, void *args)
 {
     return RT_EOK;
 }
 
 static struct rt_sensor_ops sensor_ops =
 {
-    dht11_fetch_data,
-    dht11_control
+    hx711_fetch_data,
+    hx711_control
 };
 
 static struct rt_sensor_device hx711_dev;
@@ -231,7 +189,7 @@ int rt_hw_hx711_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor->info.type       = RT_SENSOR_CLASS_TEMP ;
         sensor->info.vendor     = RT_SENSOR_VENDOR_DALLAS;
-        sensor->info.model      = "DHT11";
+        sensor->info.model      = "HX711";
         sensor->info.unit       = RT_SENSOR_UNIT_DCELSIUS;
         sensor->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor->info.range_max  = SENSOR_TEMP_RANGE_MAX;
@@ -241,7 +199,7 @@ int rt_hw_hx711_init(const char *name, struct rt_sensor_config *cfg)
         sensor->config = *cfg;
         sensor->ops = &sensor_ops;
 
-        /* dht11 sensor register */
+        /* hx711 sensor register */
         result = rt_hw_sensor_register(sensor, name, RT_DEVICE_FLAG_RDONLY, RT_NULL);
         if (result != RT_EOK)
         {
@@ -251,7 +209,7 @@ int rt_hw_hx711_init(const char *name, struct rt_sensor_config *cfg)
     }
     else
     {
-        LOG_E("dht11 init failed");
+        LOG_E("hx711 init failed");
         result = -RT_ERROR;
         goto __exit;
     }
