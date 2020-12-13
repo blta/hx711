@@ -10,12 +10,12 @@
  * 2019-08-15     MurphyZhao      add lock and modify code style
  *
  */
-
 #include <rtdevice.h>
 #include <rthw.h>
 #include "sensor.h"
 #include "board.h"
 #include <stdint.h>
+#include "sensor_avia_hx711.h"
 
 #define SENSOR_DEBUG
 #define DBG_TAG               "sensor.hx711"
@@ -69,13 +69,13 @@ static void hx711_reset(hx711_device_t pins)
 static uint8_t hx711_check(hx711_device_t pins)
 {
     uint8_t retry = 0;
-    while (rt_pin_read(pins->D_OUT) && retry < 100)
+    while (rt_pin_read(pins->D_OUT) && retry < 500)
     {
         retry++;
         rt_hw_us_delay(1);
     }
 
-    if(retry >= 100)
+    if(retry >= 500)
     {
         return CONNECT_FAILED;
     }
@@ -84,9 +84,10 @@ static uint8_t hx711_check(hx711_device_t pins)
 }
 
 
-static uint8_t hx711_read_byte(hx711_device_t pins)
+static uint32_t hx711_read_once(hx711_device_t pins)
 {
-    uint8_t i, dat = 0;
+    uint8_t i ;
+    uint32_t dat = 0;
     for (i = 1; i <= 24; i++)
     {
         rt_pin_write(pins->PD_SCK, PIN_HIGH);
@@ -105,20 +106,20 @@ static uint8_t hx711_read_byte(hx711_device_t pins)
     return dat;
 }
 
-static uint8_t hx711_read_Data(hx711_device_t pins,uint8_t *weight)
+static uint32_t hx711_read_Data(hx711_device_t pins)
 {
-	hx711_reset(pin);
+	hx711_reset(pins);
 
-	if(hx711_check(pin) == 0)
+	if(hx711_check(pins) == 0)
 	{
-	    *weight = hx711_read_byte(pins);
+	    return hx711_read_once(pins);
 	}
     else
     {
-        return 1;
+        return 0;
     }
 
-	return 0;	
+
 }
 
 uint8_t hx711_init(hx711_device_t pins)
@@ -140,7 +141,7 @@ uint8_t hx711_init(hx711_device_t pins)
 static rt_size_t hx711_polling_get_data(rt_sensor_t sensor, struct rt_sensor_data *data)
 {
     rt_int32_t weight;
-    weight = hx711_read_Data((rt_base_t)sensor->config.intf.user_data);
+    weight = hx711_read_Data((hx711_device_t)sensor->config.intf.user_data);
     data->data.temp = weight;
     data->timestamp = rt_sensor_get_ts();
     return 1;
