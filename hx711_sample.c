@@ -1,12 +1,11 @@
 /*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+ * Copyright (c) 2020-2022
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * Change Logs:
  * Date           Author         Notes
- * 2019-08-01     LuoGong         the first version.
- * 2019-08-15     MurphyZhao      add lock and modify code style
+ * 2020-12-12     blta          the first version.
  */
 
 #include <rtthread.h>
@@ -24,7 +23,7 @@ struct hx711_device hx711_instance =
     .PD_SCK = (rt_base_t)HX711_PD_SCK_PIN,
 };
 
-static void read_temp_entry(void *parameter)
+static void read_weight_entry(void *parameter)
 {
     rt_device_t dev = RT_NULL;
     struct rt_sensor_data sensor_data;
@@ -69,12 +68,12 @@ static void read_temp_entry(void *parameter)
     }
 }
 
-static int hx711_read_temp_sample(void)
+static int hx711_read_weight_sample(void)
 {
     rt_thread_t hx711_thread;
 
-    hx711_thread = rt_thread_create("dht_tem",
-                                     read_temp_entry,
+    hx711_thread = rt_thread_create("hx711_weight",
+                                     read_weight_entry,
                                      RT_NULL,
                                      1024,
                                      RT_THREAD_PRIORITY_MAX / 2,
@@ -86,12 +85,11 @@ static int hx711_read_temp_sample(void)
 
     return RT_EOK;
 }
-INIT_APP_EXPORT(hx711_read_temp_sample);
+INIT_APP_EXPORT(hx711_read_weight_sample);
 
 static int rt_hw_hx711_port(void)
 {
     struct rt_sensor_config cfg;
-    
 
     cfg.intf.user_data = (hx711_device_t)&hx711_instance;
     rt_hw_hx711_init("hx711", &cfg);
@@ -99,4 +97,3 @@ static int rt_hw_hx711_port(void)
     return RT_EOK;
 }
 INIT_COMPONENT_EXPORT(rt_hw_hx711_port);
-//MSH_CMD_EXPORT(rt_hw_hx711_port, register hx711 device);
