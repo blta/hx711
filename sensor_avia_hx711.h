@@ -10,8 +10,8 @@
  *
  */
 
-#ifndef __DHT11_H__
-#define __DHT11_H__
+#ifndef __HX711_H__
+#define __HX711_H__
 
 #include <rtthread.h>
 #include "sensor.h"
