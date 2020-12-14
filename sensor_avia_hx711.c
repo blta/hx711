@@ -188,7 +188,7 @@ int rt_hw_hx711_init(const char *name, struct rt_sensor_config *cfg)
             goto __exit;
         }
 
-        sensor->info.type       = RT_SENSOR_CLASS_TEMP ;
+        sensor->info.type       = RT_SENSOR_CLASS_NONE ;
         sensor->info.vendor     = RT_SENSOR_VENDOR_DALLAS;
         sensor->info.model      = "HX711";
         sensor->info.unit       = RT_SENSOR_UNIT_DCELSIUS;

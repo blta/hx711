@@ -30,9 +30,10 @@ static void read_weight_entry(void *parameter)
     rt_size_t res;
     rt_uint8_t get_data_freq = 1; /* 1Hz */
 
-    dev = rt_device_find("temp_hx7");
+    dev = rt_device_find("none_hx711");
     if (dev == RT_NULL)
     {
+        rt_kprintf("cann't find device :none_hx711!\n");
         return;
     }
 
@@ -58,8 +59,7 @@ static void read_weight_entry(void *parameter)
         {
             if (sensor_data.data.temp >= 0)
             {
-//                uint8_t temp = (sensor_data.data.temp & 0xffff) >> 0;      // get temp
-//                uint8_t humi = (sensor_data.data.temp & 0xffff0000) >> 16; // get humi
+                /* use the data.temp as the type temporarily */
                 rt_kprintf("weight:%d\n" ,sensor_data.data.temp);
             }
         }
@@ -68,7 +68,7 @@ static void read_weight_entry(void *parameter)
     }
 }
 
-static int hx711_read_weight_sample(void)
+ int hx711_read_weight_sample(void)
 {
     rt_thread_t hx711_thread;
 
@@ -92,7 +92,7 @@ static int rt_hw_hx711_port(void)
     struct rt_sensor_config cfg;
 
     cfg.intf.user_data = (hx711_device_t)&hx711_instance;
-    rt_hw_hx711_init("hx711", &cfg);
+    rt_hw_hx711_init("_hx711", &cfg);
 
     return RT_EOK;
 }
