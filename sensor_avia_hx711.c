@@ -68,7 +68,7 @@ static void hx711_reset(hx711_device_t pins)
 
 static uint8_t hx711_check(hx711_device_t pins)
 {
-    uint8_t retry = 0;
+    uint16_t retry = 0;
     while (rt_pin_read(pins->D_OUT) && retry < 500)
     {
         retry++;
