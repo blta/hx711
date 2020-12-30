@@ -66,14 +66,14 @@ static void hx711_reset(hx711_device_t pins)
 
 static uint8_t hx711_check(hx711_device_t pins)
 {
-    uint16_t retry = 0;
-    while (rt_pin_read(pins->D_OUT) && retry < 500)
+    uint32_t retry = 0;
+    while (rt_pin_read(pins->D_OUT) && retry < 600000)
     {
         retry++;
         rt_hw_us_delay(1);
     }
 
-    if(retry >= 500)
+    if(retry >= 600000)
     {
         return CONNECT_FAILED;
     }
