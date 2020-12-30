@@ -1,12 +1,11 @@
 /*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+ * Copyright (c) 2020-2022
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * Change Logs:
  * Date           Author          Notes
- * 2019-08-01     LuoGong         the first version.
- * 2019-08-15     MurphyZhao      add lock and modify code style
+ * 2020-12-30     bltas         the first version.
  *
  */
 
